@@ -19,7 +19,7 @@ import {
   Layers,
   Award
 } from 'lucide-react';
-import axios from 'axios';
+import api from '../services/api';
 import { allQuizzes } from '../data/quizzes/index.js';
 
 export const AdminDashboard = ({ user, onOpenAuth }) => {
@@ -61,21 +61,23 @@ export const AdminDashboard = ({ user, onOpenAuth }) => {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
       // Try fetching live backend metrics
-      const res = await axios.get('/api/admin/metrics', { headers });
-      if (res.data?.success) {
+      const res = await api.get('/admin/metrics');
+      const metricsData = res?.data || res;
+      if (res?.success || metricsData?.totalUsers !== undefined) {
         setMetrics(prev => ({
           ...prev,
-          totalUsers: res.data.data.totalUsers || prev.totalUsers,
-          adminCount: res.data.data.adminCount || prev.adminCount,
-          studentCount: res.data.data.studentCount || prev.studentCount,
-          totalLabs: res.data.data.totalLabs || prev.totalLabs
+          totalUsers: metricsData.totalUsers ?? prev.totalUsers,
+          adminCount: metricsData.adminCount ?? prev.adminCount,
+          studentCount: metricsData.studentCount ?? prev.studentCount,
+          totalLabs: metricsData.totalLabs ?? prev.totalLabs
         }));
       }
 
       // Try fetching users list
-      const usersRes = await axios.get('/api/admin/users', { headers });
-      if (usersRes.data?.success) {
-        setUsersList(usersRes.data.data.users || []);
+      const usersRes = await api.get('/admin/users');
+      const usersPayload = usersRes?.data || usersRes;
+      if (usersRes?.success || usersPayload?.users) {
+        setUsersList(usersPayload.users || []);
       }
     } catch (err) {
       // Fallback demo users if offline
@@ -91,11 +93,8 @@ export const AdminDashboard = ({ user, onOpenAuth }) => {
   const handleToggleUserRole = async (targetUserId, currentRole) => {
     const newRole = currentRole === 'admin' ? 'student' : 'admin';
     try {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-      const res = await axios.patch(`/api/admin/users/${targetUserId}/role`, { role: newRole }, { headers });
-      if (res.data?.success) {
+      const res = await api.patch(`/admin/users/${targetUserId}/role`, { role: newRole });
+      if (res?.success) {
         setActionMessage(`Updated role for ${targetUserId} to ${newRole}`);
       }
     } catch (err) {

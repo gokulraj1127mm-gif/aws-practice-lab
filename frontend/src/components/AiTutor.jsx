@@ -15,7 +15,7 @@ import {
   RefreshCw,
   Sliders
 } from 'lucide-react';
-import axios from 'axios';
+import api from '../services/api';
 
 export const AiTutor = ({ onNavigateToQuiz }) => {
   const [messages, setMessages] = useState([
@@ -69,13 +69,13 @@ export const AiTutor = ({ onNavigateToQuiz }) => {
     setIsLoading(true);
 
     try {
-      // Send query to backend tutor endpoint
-      const response = await axios.post('/api/tutor/ask', {
+      // Send query to backend tutor endpoint via configured API client
+      const response = await api.post('/tutor/ask', {
         message: q,
         difficulty
       });
 
-      const data = response.data;
+      const data = response?.data || response;
       const botMsg = {
         id: 'tutor_' + Date.now(),
         sender: 'tutor',

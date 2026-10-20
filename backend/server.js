@@ -9,13 +9,56 @@ const { apiLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 
-// Connect to MongoDB
-connectDB();
+// Connect to MongoDB and start HTTP server asynchronously
+const PORT = process.env.PORT || 5000;
+
+// Configure allowed origins for CORS
+const allowedOrigins = [];
+const configuredOrigins = process.env.FRONTEND_URL || process.env.CLIENT_URL;
+
+if (configuredOrigins) {
+  configuredOrigins
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+    .forEach((origin) => {
+      if (!allowedOrigins.includes(origin)) {
+        allowedOrigins.push(origin);
+      }
+    });
+}
+
+// In non-production environments, allow local frontend dev servers
+if (process.env.NODE_ENV !== 'production') {
+  const localOrigins = ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
+  localOrigins.forEach((origin) => {
+    if (!allowedOrigins.includes(origin)) {
+      allowedOrigins.push(origin);
+    }
+  });
+}
 
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow non-browser requests (health checks, server-to-server, curl)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.length === 0) {
+      if (process.env.NODE_ENV === 'production') {
+        console.error('⚠️ CORS Error: FRONTEND_URL or CLIENT_URL environment variable is not configured in production.');
+        return callback(new Error('CORS blocked: FRONTEND_URL or CLIENT_URL is not configured'));
+      }
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked: Origin ${origin} is not allowed`));
+  },
   credentials: true,
 }));
 
@@ -62,11 +105,25 @@ app.use((req, res) => {
 // Global error handler
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 AWS Practice Lab API running on port ${PORT}`);
-  console.log(`🔒 Simulation Mode: No real AWS resources will be created`);
-  console.log(`🌍 Client URL: ${process.env.CLIENT_URL}`);
-});
+const startServer = async () => {
+  try {
+    // Ensure database connection succeeds before reporting ready and accepting requests
+    await connectDB();
+
+    app.listen(PORT, () => {
+      console.log(`🚀 AWS Practice Lab API running on port ${PORT}`);
+      console.log(`🔒 Simulation Mode: No real AWS resources will be created`);
+      console.log(`🌍 Allowed CORS Origins: ${allowedOrigins.length > 0 ? allowedOrigins.join(', ') : 'None explicitly set (development mode)'}`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error.message);
+    process.exit(1);
+  }
+};
+
+if (require.main === module) {
+  startServer();
+}
 
 module.exports = app;
+module.exports.startServer = startServer;

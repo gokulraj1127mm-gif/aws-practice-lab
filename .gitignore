@@ -1,21 +1,31 @@
+# Dependencies
 node_modules/
-.env
-.env.local
-.env.production
-dist/
-build/
-*.log
-npm-debug.log*
-.DS_Store
-.vscode/
-coverage/
-.nyc_output/
-@"
+
+# Environment and secrets
 .env
 .env.*
+.env.local
+.env.development
+.env.test
+.env.production
 !.env.example
-node_modules/
+!.env*.example
+
+# Production builds
 dist/
 build/
+
+# Logs
 *.log
-"@ | Out-File -FilePath .gitignore -Encoding utf8
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor and OS
+.DS_Store
+.vscode/
+.idea/
+
+# Testing and coverage
+coverage/
+.nyc_output/
